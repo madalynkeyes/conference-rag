@@ -248,6 +248,8 @@ body {
     text-decoration: underline;
 }
 
+.rag-answer .result-sentences { white-space: pre-line; }
+
 /* ============================================
    LOADING SPINNER
    ============================================ */
