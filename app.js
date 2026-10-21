@@ -471,6 +471,12 @@ function highlightKeyword(text, keyword) {
 // SEMANTIC SEARCH
 // ============================================
 
+// ============================================
+// SEMANTIC SEARCH (grouped by talk)
+// ============================================
+// In app.js, replace the whole existing `async function semanticSearch() { ... }`
+// with this version, and paste `searchTalks()` below `searchSentences()`.
+
 async function semanticSearch() {
     const query = semanticInput ? semanticInput.value.trim() : '';
     if (!query || !supabaseClient) return;
@@ -482,28 +488,36 @@ async function semanticSearch() {
         // Step 1: Get embedding
         const embedding = await getEmbedding(query);
 
-        // Step 2: Search for similar sentences
-        const results = await searchSentences(embedding);
+        // Step 2: Find the best-matching TALKS (not sentences)
+        const talks = await searchTalks(embedding);
 
-        if (!results || results.length === 0) {
+        if (!talks || talks.length === 0) {
             showResults('semantic', '<div class="no-results">No similar content found. Try a different query.</div>');
             return;
         }
 
-        // Step 3: Display results with similarity badges
+        // Step 3: One card per talk, with its best passages as a preview
         let html = '';
-        for (const result of results) {
-            const sim = result.similarity;
-            const badge = similarityBadge(sim);
+        for (const talk of talks) {
+            const badge = similarityBadge(talk.best_similarity);
+            const when = [talk.season, talk.year].filter(Boolean).join(' ');
+            const passages = (talk.top_sentences || [])
+                .slice(0, 2)
+                .map(s => `“${escapeHtml(s)}”`)
+                .join('<br>');
+            const more = talk.matching_sentences > 1
+                ? ` · ${talk.matching_sentences} matching passages`
+                : '';
+
             html += `<div class="result-card">
                 <div class="result-card-header">
                     <div>
-                        <div class="result-title"><a href="${escapeHtml(result.url)}" target="_blank" class="result-title-link">${escapeHtml(result.title)}</a></div>
-                        <div class="result-speaker">by ${escapeHtml(result.speaker)}</div>
+                        <div class="result-title"><a href="${escapeHtml(talk.url || '#')}" target="_blank" class="result-title-link">${escapeHtml(talk.title)}</a></div>
+                        <div class="result-speaker">${escapeHtml(talk.speaker || '')}${when ? ' · ' + escapeHtml(when) : ''}${more}</div>
                     </div>
                     ${badge}
                 </div>
-                <div class="result-sentences">${escapeHtml(result.text)}</div>
+                <div class="result-sentences">${passages}</div>
             </div>`;
         }
         showResults('semantic', html);
@@ -513,6 +527,20 @@ async function semanticSearch() {
     } finally {
         showLoading(false);
     }
+}
+
+// Search talks using vector similarity, grouped by talk (see match_talks.sql)
+async function searchTalks(embedding) {
+    if (!supabaseClient) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabaseClient.rpc('match_talks', {
+        query_embedding: embedding,
+        match_count: 10,
+        candidate_count: 200
+    });
+
+    if (error) throw new Error(`Database search failed: ${error.message}`);
+    return data;
 }
 
 // ============================================
