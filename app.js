@@ -330,7 +330,7 @@ async function checkSearchReadiness() {
         let hasEmbeddings = false;
         if (hasData) {
             const { count, error } = await supabaseClient
-                .from('sentence_embeddings')
+                 .from('talk_chunks')
                 .select('*', { count: 'exact', head: true })
                 .not('embedding', 'is', null);
             hasEmbeddings = !error && count > 0;
@@ -489,7 +489,7 @@ async function semanticSearch() {
         const embedding = await getEmbedding(query);
 
         // Step 2: Find the best-matching TALKS (not sentences)
-        const talks = await searchTalks(embedding);
+         const talks = await searchTalks(query, embedding);
 
         if (!talks || talks.length === 0) {
             showResults('semantic', '<div class="no-results">No similar content found. Try a different query.</div>');
@@ -508,12 +508,15 @@ async function semanticSearch() {
             const more = talk.matching_sentences > 1
                 ? ` · ${talk.matching_sentences} matching passages`
                 : '';
+            const found = talk.keyword_rank && talk.semantic_rank ? ' · meaning + keywords'
+                : talk.keyword_rank ? ' · keyword match'
+                : '';
 
             html += `<div class="result-card">
                 <div class="result-card-header">
                     <div>
                         <div class="result-title"><a href="${escapeHtml(talk.url || '#')}" target="_blank" class="result-title-link">${escapeHtml(talk.title)}</a></div>
-                        <div class="result-speaker">${escapeHtml(talk.speaker || '')}${when ? ' · ' + escapeHtml(when) : ''}${more}</div>
+                        <div class="result-speaker">${escapeHtml(talk.speaker || '')}${when ? ' · ' + escapeHtml(when) : ''}${more}${found}</div>
                     </div>
                     ${badge}
                 </div>
@@ -530,15 +533,16 @@ async function semanticSearch() {
 }
 
 // Search talks using vector similarity, grouped by talk (see match_talks.sql)
-async function searchTalks(embedding) {
+async function searchTalks(query, embedding) {
     if (!supabaseClient) throw new Error('Supabase not configured');
-
-    const { data, error } = await supabaseClient.rpc('match_talks', {
+ 
+    const { data, error } = await supabaseClient.rpc('hybrid_match_talks', {
+        query_text: query,
         query_embedding: embedding,
         match_count: 10,
         candidate_count: 200
     });
-
+ 
     if (error) throw new Error(`Database search failed: ${error.message}`);
     return data;
 }
@@ -558,11 +562,16 @@ async function askQuestion() {
         // Step 1: Get embedding
         const embedding = await getEmbedding(question);
 
-        // Step 2: Search for similar sentences
-        const results = await searchSentences(embedding);
-
-        // Step 3: Group by talk (with similarity scores and URLs)
-        const topTalks = groupByTalk(results);
+         // Step 2 + 3: Hybrid search already returns talks, best first
+        const talks = await searchTalks(question, embedding);
+        const topTalks = talks.slice(0, 3).map(t => ({
+            talk_id: t.talk_id,
+            title: t.title,
+            speaker: t.speaker,
+            url: t.url,
+            text: (t.top_sentences || []).join(' '),
+            avgSimilarity: t.best_similarity
+        }));
 
         // Step 4: Fetch full talk text for richer context
         const enrichedTalks = await fetchFullTalkText(topTalks);
