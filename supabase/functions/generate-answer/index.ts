@@ -21,7 +21,8 @@ Rules:
 - Base every statement on the provided talks. Do not add outside facts or quotes.
 - Cite the talks you use by title and speaker, e.g. (Elder X, "Talk Title").
 - Short direct quotes from the talks are welcome; put them in quotation marks.
-- If the talks don't really answer the question, say so honestly and share whatever related insight they do offer.
+- Use only the talks that actually relate to the question; ignore the others and don't mention them.
+- If none of the talks address the question, say so in one or two sentences and stop. Do not stretch unrelated talks to fit, and never fill gaps with general knowledge.
 - Be warm and practical. Write 2–4 short paragraphs of plain text — no markdown, headings, or bullet symbols.`;
 
 Deno.serve(async (req) => {

@@ -573,6 +573,14 @@ async function askQuestion() {
             avgSimilarity: t.best_similarity
         }));
 
+        // Skip the AI when no talk is a real match
+        const MIN_SIMILARITY = 0.30;
+        const bestMatch = Math.max(0, ...topTalks.map(t => t.avgSimilarity || 0));
+        if (topTalks.length === 0 || bestMatch < MIN_SIMILARITY) {
+            showResults('rag', '<div class="no-results">I couldn’t find any conference talks that address this question. Try rephrasing it, or ask about a gospel topic.</div>');
+            return;
+        }
+
         // Step 4: Fetch full talk text for richer context
         const enrichedTalks = await fetchFullTalkText(topTalks);
 
