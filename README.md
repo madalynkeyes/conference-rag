@@ -8,6 +8,28 @@ A Retrieval Augmented Generation (RAG) application that lets users ask questions
   <em>Sample screenshot — semantic search with AI-generated answers</em>
 </p>
 
+## ✨ My Improvements (Make It Yours)
+
+Live site: https://madalynkeyes.github.io/conference-rag/
+
+I measured search quality with a 27-question test set and improved it step by step:
+
+**📊 [Search Quality Tracker](docs/search_quality_tracker.xlsx)** — questions, known best talks, and scores for each round ([Google Sheets version](https://docs.google.com/spreadsheets/d/15HUmqeKZ54nJjkpJHFjOVwijo6k6G7Xdp7uZWEWdfXY/edit))
+
+| Round | Change | Avg relevant talks (of 5) |
+|---|---|---|
+| Baseline | Sentence-level semantic search | 2.52 |
+| 1 | Group results by talk (`match_talks`) — one card per talk with date and link | 2.48 |
+| 2 | Paragraph chunks via semantic segmentation + contextual headers (title, speaker, date) | 2.70 |
+| 4 | Hybrid search: semantic + Postgres full-text, merged with Reciprocal Rank Fusion | **3.19** |
+
+Other changes:
+- **RAG**: `generate-answer` Edge Function (GPT-4o) answers only from the retrieved talks and cites them; questions with no talk above 30% similarity skip the AI call.
+- **Data cleanup**: removed sustainings/reports the scraper saved as talks; dropped sentence vectors to stay under the free-tier storage limit.
+- **Custom feature — Personal Study Journal**: save RAG answers and their source talks to a `journal_entries` table. Row Level Security (`auth.uid() = user_id`) means each user can only read, add, and delete their own entries; entries sync across devices.
+
+SQL run in the Supabase SQL Editor is in [`sql/`](sql/README.md); the chunking script is [`scripts/06_build_chunks.py`](scripts/06_build_chunks.py).
+
 ## 🚀 Quick Start
 
 Follow the step-by-step guides in the `steps/` folder:
