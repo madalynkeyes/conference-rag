@@ -1,1 +1,5 @@
 For my custom feature, I decided to make it so that you can save your favorite queries (RAGS). If you ask a question and like the output that AI gives you and the talks it gives you, you can press "Save to journal" which then adds the RAG answers and source talks to a new Supabase table "journal_entries". This then shows up on the website under a new section called "My Study Journal". When you log in, Supabase gives the browser a JWT with your userID and role (authenticated) which the RLS uses to give you access to read, insert and delete your own rows in the journal_entries table. That makes it so when you are logged in, you can only see your saved entries and no one elses. You can also add new entries or delete entries, and it should sync accross devices. 
+
+Github repository fork: https://github.com/madalynkeyes/conference-rag
+
+Live deployment URL: https://madalynkeyes.github.io/conference-rag/
