@@ -754,9 +754,13 @@ async function generateAnswer(question, contextTalks) {
 
     return data.answer;
 }
+
+
 // ============================================
 // PERSONAL STUDY JOURNAL — app.js changes
 // ============================================
+// A. Paste this whole block into app.js, just ABOVE the
+//    "// RESULTS DISPLAY HELPERS" section.
  
 let lastRagResult = null;   // the most recent RAG answer, ready to save
  
@@ -772,8 +776,10 @@ function ensureJournalPanel() {
     // Reuse the RAG panel's styling (minus its ready/not-ready color)
     panel.className = ragPanel ? ragPanel.className.replace(/panel-(not-)?ready/g, '').trim() : '';
     panel.innerHTML = `
-        <div class="result-title" style="font-size:1.15em">📓 My Study Journal</div>
-        <div class="result-speaker">Answers you've saved. Only you can see these.</div>
+        <div class="panel-header">
+            <h3>📓 My Study Journal</h3>
+        </div>
+        <p class="journal-subtitle">Answers you've saved. Only you can see these.</p>
         <div id="journal-entries"></div>`;
  
     if (ragPanel && ragPanel.parentElement) {
@@ -813,7 +819,7 @@ async function loadJournal() {
                     <div class="result-title">${escapeHtml(entry.question)}</div>
                     <div class="result-speaker">${new Date(entry.created_at).toLocaleDateString()}</div>
                 </div>
-                <button class="journal-delete" data-id="${entry.id}" title="Delete entry">🗑️</button>
+                <button class="journal-delete" data-id="${entry.id}">Delete</button>
             </div>
             <details>
                 <summary>Show answer</summary>

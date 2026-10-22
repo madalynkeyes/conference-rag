@@ -764,3 +764,58 @@ input:focus {
         flex-direction: column;
     }
 }
+
+/* ============================================
+   STUDY JOURNAL — add to the END of styles.css
+   ============================================ */
+
+/* The site dims panels that aren't "ready" (opacity 0.6).
+   The journal is always usable, so show it at full strength with an accent border. */
+#journal-panel.search-panel {
+    opacity: 1;
+    border: 2px solid #3ecf8e;
+}
+
+.journal-subtitle {
+    color: #94a3b8;
+    font-size: 0.9em;
+    margin: 4px 0 16px;
+}
+
+/* Readable talk links on the dark background */
+#journal-panel a {
+    color: #3ecf8e;
+    text-decoration: none;
+}
+#journal-panel a:hover {
+    text-decoration: underline;
+}
+
+#journal-panel summary {
+    cursor: pointer;
+    color: #cbd5e1;
+    margin: 8px 0;
+}
+
+#journal-entries .result-card {
+    margin-top: 12px;
+}
+
+/* Red "Delete" button, darker red on hover */
+.journal-delete {
+    background-color: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.journal-delete:hover {
+    background-color: #991b1b;
+}
+.journal-delete:focus-visible {
+    outline: 2px solid #fca5a5;
+    outline-offset: 2px;
+}
