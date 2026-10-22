@@ -278,6 +278,8 @@ if (logoutBtn) {
 function showLogin() {
     if (loginScreen) loginScreen.classList.remove('hidden');
     if (appScreen) appScreen.classList.add('hidden');
+    const journalList = document.getElementById('journal-entries');
+    if (journalList) journalList.innerHTML = '';
 }
 
 function showApp(user) {
@@ -286,6 +288,7 @@ function showApp(user) {
     if (userEmailSpan) userEmailSpan.textContent = user.email;
     // Check search readiness when user logs in
     checkSearchReadiness();
+    loadJournal();
 }
 
 function showMessage(text, type) {
@@ -587,6 +590,12 @@ async function askQuestion() {
         // Step 5: Generate answer with full context
         const answer = await generateAnswer(question, enrichedTalks);
 
+        lastRagResult = {
+           question: question,
+           answer: answer,
+           talks: topTalks.map(t => ({ title: t.title, speaker: t.speaker, url: t.url }))
+        };
+
         // Compute overall similarity (weighted avg across source talks)
         const overallSimilarity = topTalks.reduce((sum, t) => sum + t.avgSimilarity, 0) / topTalks.length;
         const overallBadge = similarityBadge(overallSimilarity);
@@ -615,8 +624,13 @@ async function askQuestion() {
                 </div>
             </div>`;
         }
+        html += '<button id="save-journal-btn">💾 Save to journal</button>';
         showResults('rag', html);
-
+        const saveBtn = document.getElementById('save-journal-btn');
+        if (saveBtn) {
+           saveBtn.className = ragBtn ? ragBtn.className : '';   // match the Ask button's style
+           saveBtn.addEventListener('click', () => saveToJournal(saveBtn));
+        }
     } catch (error) {
         showResults('rag', `<div class="result-error">Error: ${escapeHtml(error.message)}</div>`);
     } finally {
@@ -739,6 +753,107 @@ async function generateAnswer(question, contextTalks) {
     }
 
     return data.answer;
+}
+// ============================================
+// PERSONAL STUDY JOURNAL — app.js changes
+// ============================================
+ 
+let lastRagResult = null;   // the most recent RAG answer, ready to save
+ 
+// Creates the "My Study Journal" panel right below the Ask a Question panel
+// (built in JavaScript so index.html doesn't need to change).
+function ensureJournalPanel() {
+    let panel = document.getElementById('journal-panel');
+    if (panel) return panel;
+ 
+    const ragPanel = document.getElementById('rag-panel');
+    panel = document.createElement('div');
+    panel.id = 'journal-panel';
+    // Reuse the RAG panel's styling (minus its ready/not-ready color)
+    panel.className = ragPanel ? ragPanel.className.replace(/panel-(not-)?ready/g, '').trim() : '';
+    panel.innerHTML = `
+        <div class="result-title" style="font-size:1.15em">📓 My Study Journal</div>
+        <div class="result-speaker">Answers you've saved. Only you can see these.</div>
+        <div id="journal-entries"></div>`;
+ 
+    if (ragPanel && ragPanel.parentElement) {
+        ragPanel.parentElement.insertBefore(panel, ragPanel.nextSibling);
+    } else if (appScreen) {
+        appScreen.appendChild(panel);
+    }
+    return panel;
+}
+ 
+// Read MY entries. There's no "where user_id = ..." here on purpose:
+// RLS filters the rows on the database side using the JWT.
+async function loadJournal() {
+    if (!supabaseClient) return;
+    ensureJournalPanel();
+    const list = document.getElementById('journal-entries');
+ 
+    const { data, error } = await supabaseClient
+        .from('journal_entries')
+        .select('id, question, answer, talks, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+ 
+    if (error) {
+        list.innerHTML = `<div class="result-error">Couldn't load your journal: ${escapeHtml(error.message)}</div>`;
+        return;
+    }
+    if (!data.length) {
+        list.innerHTML = '<div class="no-results">No saved entries yet. Ask a question, then click “Save to journal”.</div>';
+        return;
+    }
+ 
+    list.innerHTML = data.map(entry => `
+        <div class="result-card">
+            <div class="result-card-header">
+                <div>
+                    <div class="result-title">${escapeHtml(entry.question)}</div>
+                    <div class="result-speaker">${new Date(entry.created_at).toLocaleDateString()}</div>
+                </div>
+                <button class="journal-delete" data-id="${entry.id}" title="Delete entry">🗑️</button>
+            </div>
+            <details>
+                <summary>Show answer</summary>
+                <div class="result-sentences" style="white-space:pre-line">${escapeHtml(entry.answer)}</div>
+            </details>
+            <div class="result-sentences">
+                ${(entry.talks || []).map(t =>
+                    `<a href="${escapeHtml(t.url || '#')}" target="_blank">${escapeHtml(t.title || '')}</a> — ${escapeHtml(t.speaker || '')}`
+                ).join('<br>')}
+            </div>
+        </div>`).join('');
+ 
+    list.querySelectorAll('.journal-delete').forEach(btn =>
+        btn.addEventListener('click', () => deleteJournalEntry(btn.dataset.id)));
+}
+ 
+// Save the latest RAG answer. We send no user_id: the column's default,
+// auth.uid(), fills it in from the JWT, and the insert policy double-checks it.
+async function saveToJournal(btn) {
+    if (!lastRagResult || !supabaseClient) return;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+ 
+    const { error } = await supabaseClient.from('journal_entries').insert(lastRagResult);
+ 
+    if (error) {
+        console.error('Journal save failed:', error);
+        btn.textContent = 'Save failed — try again';
+        btn.disabled = false;
+        return;
+    }
+    btn.textContent = '✅ Saved to journal';
+    loadJournal();
+}
+ 
+async function deleteJournalEntry(id) {
+    if (!confirm('Delete this journal entry?')) return;
+    const { error } = await supabaseClient.from('journal_entries').delete().eq('id', id);
+    if (error) alert(`Couldn't delete: ${error.message}`);
+    loadJournal();
 }
 
 // ============================================
